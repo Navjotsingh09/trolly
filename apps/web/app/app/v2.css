@@ -85,3 +85,16 @@
 @media(min-width:561px){.v2-modal-backdrop{top:50%;left:50%;transform:translate(-50%,-50%);width:390px;height:min(844px,calc(100dvh - 36px));border-radius:40px;overflow:hidden}.v2-sheet{max-height:88%;height:auto;min-height:0}}
 @media(max-width:560px){.v2-page{padding:0}.v2-phone{height:100dvh;width:100%;border:0;box-shadow:none;border-radius:0}.v2-modal-backdrop{height:100dvh}.v2-sheet{width:100%;max-height:90dvh;padding-bottom:calc(20px + env(safe-area-inset-bottom))}.v2-nav{bottom:calc(12px + env(safe-area-inset-bottom))}}
 @media(prefers-reduced-motion:reduce){.v2-toggle i:before{transition:none}}
+
+/* Regression polish: aisle hierarchy, stable nav badge, accessible sheets. */
+.v2-aisle{font-size:13px;font-weight:850;letter-spacing:.3px;color:var(--text);margin:22px 0 9px;padding:0 3px;}
+.v2-loyalty-tag{display:inline-block!important;color:#276E4A!important;background:var(--pale);padding:5px 7px;border-radius:7px;font-weight:850;margin:7px 0 0!important;}
+.v2-nav button{position:relative;}
+.v2-list-badge{position:absolute;top:0;right:12px;display:grid;place-items:center;min-width:19px;height:19px;padding:0 3px;border-radius:11px;background:#2C8853;color:#fff;font-size:10px;font-weight:900;}
+.v2-sheet{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;min-height:0;}
+.v2-sheet::-webkit-scrollbar{display:none;}
+.v2-sheet-scroll{overflow:visible;min-height:auto;flex:none;max-height:none;padding-right:8px;}
+.v2-sheet>header{flex:none;}
+.v2-sheet .v2-primary{flex:none;}
+.v2-sheet .v2-history,.v2-sheet .v2-packvalue,.v2-sheet .v2-alert,.v2-sheet .v2-disclaimer{flex:none;}
+.v2-price-row>b{max-width:100px;white-space:normal;text-align:right;overflow-wrap:break-word;}
