@@ -20,9 +20,11 @@ export default function TrolleyScout(){
  const [loyalty,setLoyalty]=useState<string[]>([]),[selectedStores,setSelectedStores]=useState<string[]>(stores.map(x=>x.id));
  const [budget,setBudget]=useState(''),[postcode,setPostcode]=useState(''),[night,setNight]=useState(false);
  const [query,setQuery]=useState(''),[category,setCategory]=useState('All'),[productId,setProductId]=useState<string|null>(null),[storeId,setStoreId]=useState<string|null>(null);
+ const [remoteCatalogue,setRemoteCatalogue]=useState<Product[]|null>(null);
  const [shopMode,setShopMode]=useState(false),[alerts,setAlerts]=useState<string[]>([]),[editor,setEditor]=useState<'new'|'rename'|null>(null),[nameDraft,setNameDraft]=useState('');
  const [undo,setUndo]=useState<{label:string;lists:GroceryList[];activeId:string}|null>(null),[message,setMessage]=useState(''),[ready,setReady]=useState(false),[info,setInfo]=useState(false);
  const contentRef=useRef<HTMLDivElement>(null),lastFocus=useRef<HTMLElement|null>(null);
+ const viewCatalogue=remoteCatalogue??catalogue;
  const list=lists.find(x=>x.id===activeId)||lists[0];
  const items=list.items;
  const matches=useMemo(()=>compareBasket(items,{stores:selectedStores,loyalty}),[items,selectedStores,loyalty]);
@@ -31,11 +33,11 @@ export default function TrolleyScout(){
  const split=useMemo(()=>bestSplit(items,{stores:selectedStores,loyalty}),[items,selectedStores,loyalty]);
  const units=Object.values(items).reduce((a,b)=>a+b.quantity,0);
  const productCount=Object.keys(items).length;
- const selected=productId?catalogue.find(x=>x.id===productId):undefined;
+ const selected=productId?viewCatalogue.find(x=>x.id===productId):undefined;
  const store=storeId?matches.find(x=>x.storeId===storeId):undefined;
  const budgetPence=budget?Math.round(Number(budget)*100):null;
- const available=catalogue.filter(p=>(category==='All'||p.category===category)&&p.name.toLowerCase().includes(query.trim().toLowerCase()));
- const unmatched=query.trim().length>0&&!catalogue.some(p=>p.name.toLowerCase().includes(query.trim().toLowerCase()));
+ const available=viewCatalogue.filter(p=>(category==='All'||p.category===category)&&p.name.toLowerCase().includes(query.trim().toLowerCase()));
+ const unmatched=query.trim().length>0&&!viewCatalogue.some(p=>p.name.toLowerCase().includes(query.trim().toLowerCase()));
  const selectedStoreCount=selectedStores.length;
 
  useEffect(()=>{try{const raw=localStorage.getItem(key);if(raw){const p=JSON.parse(raw);
@@ -46,10 +48,11 @@ export default function TrolleyScout(){
   if(typeof p.postcode==='string'&&validPostcode(p.postcode))setPostcode(postcodeFormat(p.postcode));
   if(Array.isArray(p.alerts))setAlerts(p.alerts.filter((x:unknown)=>typeof x==='string'));
   setNight(!!p.night);
- }else{const old=localStorage.getItem('trolleyscout-preview');if(old){const p=JSON.parse(old);if(p.basket){const items:ListItems={};for(const [id,q]of Object.entries(p.basket)){if(catalogue.some(x=>x.id===id)&&Number.isInteger(q)&&Number(q)>0)items[id]={quantity:Number(q),tier:'Own-label',variant:'standard'};}if(Object.keys(items).length)setLists([{...demoList,items}]);}if(typeof p.postcode==='string')setPostcode(postcodeFormat(p.postcode));setNight(!!p.night);}}
+ }else{const old=localStorage.getItem('trolleyscout-preview');if(old){const p=JSON.parse(old);if(p.basket){const items:ListItems={};for(const [id,q]of Object.entries(p.basket)){if(viewCatalogue.some(x=>x.id===id)&&Number.isInteger(q)&&Number(q)>0)items[id]={quantity:Number(q),tier:'Own-label',variant:'standard'};}if(Object.keys(items).length)setLists([{...demoList,items}]);}if(typeof p.postcode==='string')setPostcode(postcodeFormat(p.postcode));setNight(!!p.night);}}
   const shared=new URLSearchParams(location.search).get('list');if(shared){const incoming=shareDecode(shared);if(incoming){setLists(old=>[...old,incoming]);setActiveId(incoming.id);setTab('lists');setMessage('Shared list imported');}history.replaceState(null,'',location.pathname);}
  }catch{}setReady(true)},[]);
  useEffect(()=>{if(ready)try{localStorage.setItem(key,JSON.stringify({lists,activeId,loyalty,selectedStores,budget,postcode:validPostcode(postcode)?postcodeFormat(postcode):'',night,alerts}));}catch{}},[ready,lists,activeId,loyalty,selectedStores,budget,postcode,night,alerts]);
+ useEffect(()=>{const controller=new AbortController();fetch('/api/catalogue',{signal:controller.signal}).then(async r=>{if(!r.ok)throw new Error('Catalogue unavailable');return r.json()}).then(data=>{if(Array.isArray(data.catalogue)&&data.viewCatalogue.length>=60&&data.metadata?.source==='fictional-demonstration'){setRemoteCatalogue(data.catalogue as Product[])}}).catch(()=>{});return ()=>controller.abort()},[]);
  useEffect(()=>{if(!productId&&!storeId&&!info)return;function close(e:KeyboardEvent){if(e.key==='Escape'){setProductId(null);setStoreId(null);setInfo(false);lastFocus.current?.focus()}}window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[productId,storeId,info]);
  const change=(update:(current:GroceryList)=>GroceryList)=>setLists(old=>old.map(x=>x.id===list.id?update(x):x));
  const setItems=(fn:(prev:ListItems)=>ListItems)=>change(l=>({...l,items:fn(l.items)}));
@@ -82,12 +85,12 @@ export default function TrolleyScout(){
  };
  const num=Number(budget),hasBudget=budget.trim()!==''&&Number.isFinite(num)&&num>=0&&num<=10000;
  return <main className={'v2-page '+(night?'v2-dark':'')}><div className="v2-phone">
-  <header className="v2-top"><b>trolleyscout<span>.</span></b><small>● DEMO PRICES</small></header>
+  <header className="v2-top"><b>trolleyscout<span>.</span></b><small>{remoteCatalogue?'● NEON DEMO DATA':'● DEMO PRICES'}</small></header>
   <div className="v2-scroll" ref={contentRef}>
    {tab==='discover'&&<>
     {heading('BETTER EVERYDAY SHOPPING','Shop smarter.','Make one list. See what your shopping could cost.')}
     <div className="v2-hero"><div className="v2-hero-orb"/><span>YOUR SHOPPING LIST</span><strong>{productCount} products<br/>{units} total units</strong><p>Compare eight fictional supermarket price sets, personalised to your cards.</p><button onClick={()=>selectTab('compare')}>Compare my basket <ArrowUpRight size={18}/></button></div>
-    <div className="v2-section-head"><h2>Discover groceries</h2><span>{catalogue.length} products</span></div>
+    <div className="v2-section-head"><h2>Discover groceries</h2><span>{viewCatalogue.length} products</span></div>
     <label className="v2-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search for milk, chicken, rice…" aria-label="Search groceries"/></label>
     <div className="v2-chips">{['All',...categories].map(c=><button key={c} onClick={()=>setCategory(c)} className={category===c?'v2-active':''}>{c}</button>)}</div>
     {unmatched&&<button className="v2-addcustom" onClick={()=>{const item=query.trim().slice(0,70);if(list.custom.includes(item)){snack('Already in your list');return;}change(l=>({...l,custom:[...l.custom,item]}));setQuery('');snack('Custom item added — no price comparison')}}><Plus size={18}/> Add “{query.trim().slice(0,50)}” as a custom item</button>}
@@ -100,8 +103,8 @@ export default function TrolleyScout(){
     <div className="v2-list-actions"><button onClick={duplicate}><Copy size={17}/> Duplicate</button><button onClick={share}><Share2 size={17}/> Share</button><button onClick={deleteList}><Trash2 size={17}/> Delete</button></div>
     <div className="v2-summary"><div><span>IN YOUR TROLLEY</span><strong>{productCount} products</strong><small>{units} total units · {list.custom.length} custom</small></div><ShoppingBag size={36}/></div>
     <div className="v2-section-head"><h2>{shopMode?'Shop mode':'Your essentials'}</h2><button className="v2-text-btn" onClick={()=>selectTab('discover')}>Add products <Plus size={16}/></button></div>
-    {shopMode?<><p className="v2-muted">Tick off your items as you shop. Completed items move to the bottom.</p>{[...catalogue.filter(p=>items[p.id]),...list.custom.map((name,i)=>({id:'custom-'+i,name,category:'Custom',emoji:'📝'}))].sort((a,b)=>Number(!!list.checked[a.id])-Number(!!list.checked[b.id])||a.category.localeCompare(b.category)).map((p,i)=><button className={'v2-checkrow '+(list.checked[p.id]?'v2-checked':'')} onClick={()=>checked(p.id)} key={p.id}><span className="v2-checkicon">{list.checked[p.id]?<Check size={17}/>:null}</span><span><strong>{p.name}</strong><small>{p.category} · {items[p.id]?items[p.id].quantity+' units':'Custom item'}</small></span></button>)}<button className="v2-primary" onClick={finishShop}>Finish shop <CheckCheck size={19}/></button></>:
-    <>{catalogue.filter(p=>items[p.id]).map(p=><div className="v2-listitem" key={p.id}>{productRow(p)}<div className="v2-variants"><label>Tier<select aria-label={p.name+' brand tier'} value={items[p.id].tier} onChange={e=>patch(p.id,'tier',e.target.value)}>{tiers.map(t=><option key={t}>{t}</option>)}</select></label>{p.variants.length>1&&<label>Pack<select aria-label={p.name+' pack size'} value={items[p.id].variant} onChange={e=>patch(p.id,'variant',e.target.value)}>{p.variants.map(v=><option value={v.id} key={v.id}>{v.label}</option>)}</select></label>}</div></div>)}
+    {shopMode?<><p className="v2-muted">Tick off your items as you shop. Completed items move to the bottom.</p>{[...viewCatalogue.filter(p=>items[p.id]),...list.custom.map((name,i)=>({id:'custom-'+i,name,category:'Custom',emoji:'📝'}))].sort((a,b)=>Number(!!list.checked[a.id])-Number(!!list.checked[b.id])||a.category.localeCompare(b.category)).map((p,i)=><button className={'v2-checkrow '+(list.checked[p.id]?'v2-checked':'')} onClick={()=>checked(p.id)} key={p.id}><span className="v2-checkicon">{list.checked[p.id]?<Check size={17}/>:null}</span><span><strong>{p.name}</strong><small>{p.category} · {items[p.id]?items[p.id].quantity+' units':'Custom item'}</small></span></button>)}<button className="v2-primary" onClick={finishShop}>Finish shop <CheckCheck size={19}/></button></>:
+    <>{viewCatalogue.filter(p=>items[p.id]).map(p=><div className="v2-listitem" key={p.id}>{productRow(p)}<div className="v2-variants"><label>Tier<select aria-label={p.name+' brand tier'} value={items[p.id].tier} onChange={e=>patch(p.id,'tier',e.target.value)}>{tiers.map(t=><option key={t}>{t}</option>)}</select></label>{p.variants.length>1&&<label>Pack<select aria-label={p.name+' pack size'} value={items[p.id].variant} onChange={e=>patch(p.id,'variant',e.target.value)}>{p.variants.map(v=><option value={v.id} key={v.id}>{v.label}</option>)}</select></label>}</div></div>)}
     {list.custom.map((name,i)=><div className="v2-custom" key={i}><span>📝</span><div><strong>{name}</strong><small>Not price-compared</small></div><button aria-label={'Remove '+name} onClick={()=>change(l=>({...l,custom:l.custom.filter((_,k)=>k!==i)}))}><X size={18}/></button></div>)}
     {!productCount&&!list.custom.length&&<p className="v2-empty">Your list is empty. Add a few groceries in Explore.</p>}
     {(productCount>0||list.custom.length>0)&&<><button className="v2-primary" onClick={()=>setShopMode(true)}>Start shopping <ClipboardCheck size={19}/></button><button className="v2-secondary" onClick={()=>selectTab('compare')}>Compare my basket <ArrowRight size={19}/></button><button className="v2-muted-action" onClick={clearList}>Clear shopping list</button></>}
@@ -111,7 +114,7 @@ export default function TrolleyScout(){
     {heading('WHOLE BASKET COMPARISON','Compare stores.','Your prices, your loyalty cards, your supermarket choices.')}
     <div className="v2-best"><span>LOWEST COMPLETE DEMO BASKET</span><strong>{best?money(best.totalPence):'—'}</strong><small>{best?best.name+' · '+best.matched+'/'+best.required+' products matched':'No complete basket'}</small>{best&&worst&&worst.totalPence>best.totalPence&&<b>Example difference {money(worst.totalPence-best.totalPence)}</b>}</div>
     {hasBudget&&best&&<div className={'v2-budget '+(best.totalPence>Math.round(num*100)?'v2-over':'')}>{money(Math.abs(Math.round(num*100)-best.totalPence))} {best.totalPence>Math.round(num*100)?'over':'under'} weekly budget</div>}
-    {split?.visible&&<div className="v2-split"><Sparkles size={24}/><div><strong>Two shops could save {money(split.savingsPence)}</strong><p>{split.names.join(' + ')} = {money(split.totalPence)}. Worth considering if both are on your route.</p><details><summary>See item assignments</summary>{split.assignments.map(x=><div key={x.id}>{catalogue.find(p=>p.id===x.id)?.name}: {stores.find(s=>s.id===x.storeId)?.name}, {money(x.pricePence)}</div>)}</details></div></div>}
+    {split?.visible&&<div className="v2-split"><Sparkles size={24}/><div><strong>Two shops could save {money(split.savingsPence)}</strong><p>{split.names.join(' + ')} = {money(split.totalPence)}. Worth considering if both are on your route.</p><details><summary>See item assignments</summary>{split.assignments.map(x=><div key={x.id}>{viewCatalogue.find(p=>p.id===x.id)?.name}: {stores.find(s=>s.id===x.storeId)?.name}, {money(x.pricePence)}</div>)}</details></div></div>}
     <div className="v2-section-head"><h2>Supermarket ranking</h2><span>{matches.filter(x=>x.complete).length} complete</span></div>
     <p className="v2-muted">{matches.some(x=>!x.complete&&x.required>0)?'“Partial only” means some products have no price. That total is not a full-basket comparison.':'Try adding cherry tomatoes — Iceland will have an incomplete demo basket.'}</p>
     {matches.length?matches.map((r,i)=><button key={r.storeId} className={'v2-store '+(i===0&&r.complete?'v2-winner':'')} onClick={()=>modal(setStoreId,r.storeId)}><span className="v2-store-letter">{r.name[0]}</span><span className="v2-store-text"><strong>{r.name}{i===0&&r.complete&&<em>BEST</em>}</strong><small>{r.matched}/{r.required} matched{r.complete?'':' · incomplete'}</small>{r.withoutLoyaltyPence!==r.totalPence&&<small>With {r.scheme}: {money(r.totalPence)} · without {money(r.withoutLoyaltyPence)}</small>}</span><span className="v2-store-price"><strong>{money(r.totalPence)}</strong>{!r.complete&&<small>Partial only</small>}</span><ChevronRight size={18}/></button>):<p className="v2-empty">Choose at least one store in You to see prices.</p>}
