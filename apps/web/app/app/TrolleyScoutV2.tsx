@@ -10,6 +10,7 @@ const initial:ListItems={milk:{quantity:1,tier:'Own-label',variant:'standard'},b
 const demoList:GroceryList={id:'weekly',name:'Weekly essentials',items:initial,checked:{},custom:[]};
 const key='trolleyscout-phase1';
 function postcodeFormat(s:string){const raw=s.replace(/\s/g,'').toUpperCase();return raw.length>3?raw.slice(0,-3)+' '+raw.slice(-3):raw;}
+function validPostcode(s:string){return !s.trim()||/^(?:GIR\s?0AA|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})$/i.test(s.trim())}
 function shareEncode(list:GroceryList){const payload=JSON.stringify({name:list.name,items:list.items,custom:list.custom});const b=new TextEncoder().encode(payload);return btoa(Array.from(b,c=>String.fromCharCode(c)).join('')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 function shareDecode(s:string):GroceryList|null{try{if(s.length>15000)return null;const bin=atob(s.replace(/-/g,'+').replace(/_/g,'/'));const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));const raw=JSON.parse(new TextDecoder().decode(bytes));if(!raw||typeof raw.name!=='string')return null;return {id:'import-'+Date.now(),name:raw.name.slice(0,45)||'Shared list',items:validatedShareItems(raw.items),custom:Array.isArray(raw.custom)?raw.custom.filter((a:unknown)=>typeof a==='string').slice(0,40).map((x:string)=>x.slice(0,70)):[],checked:{}};}catch{return null}}
 const tiers:Tier[]=['Value','Own-label','Branded'];
@@ -20,7 +21,7 @@ export default function TrolleyScout(){
  const [budget,setBudget]=useState(''),[postcode,setPostcode]=useState(''),[night,setNight]=useState(false);
  const [query,setQuery]=useState(''),[category,setCategory]=useState('All'),[productId,setProductId]=useState<string|null>(null),[storeId,setStoreId]=useState<string|null>(null);
  const [shopMode,setShopMode]=useState(false),[alerts,setAlerts]=useState<string[]>([]),[editor,setEditor]=useState<'new'|'rename'|null>(null),[nameDraft,setNameDraft]=useState('');
- const [undo,setUndo]=useState<{label:string;lists:GroceryList[]}|null>(null),[message,setMessage]=useState(''),[ready,setReady]=useState(false),[info,setInfo]=useState(false);
+ const [undo,setUndo]=useState<{label:string;lists:GroceryList[];activeId:string}|null>(null),[message,setMessage]=useState(''),[ready,setReady]=useState(false),[info,setInfo]=useState(false);
  const contentRef=useRef<HTMLDivElement>(null),lastFocus=useRef<HTMLElement|null>(null);
  const list=lists.find(x=>x.id===activeId)||lists[0];
  const items=list.items;
@@ -42,17 +43,17 @@ export default function TrolleyScout(){
   if(Array.isArray(p.loyalty))setLoyalty(p.loyalty.filter((x:unknown)=>typeof x==='string'&&loyaltySchemes.some(s=>s.id===x)));
   if(Array.isArray(p.selectedStores))setSelectedStores(p.selectedStores.filter((x:unknown)=>typeof x==='string'&&stores.some(s=>s.id===x)));
   if(typeof p.budget==='string')setBudget(p.budget);
-  if(typeof p.postcode==='string')setPostcode(postcodeFormat(p.postcode));
+  if(typeof p.postcode==='string'&&validPostcode(p.postcode))setPostcode(postcodeFormat(p.postcode));
   if(Array.isArray(p.alerts))setAlerts(p.alerts.filter((x:unknown)=>typeof x==='string'));
   setNight(!!p.night);
  }else{const old=localStorage.getItem('trolleyscout-preview');if(old){const p=JSON.parse(old);if(p.basket){const items:ListItems={};for(const [id,q]of Object.entries(p.basket)){if(catalogue.some(x=>x.id===id)&&Number.isInteger(q)&&Number(q)>0)items[id]={quantity:Number(q),tier:'Own-label',variant:'standard'};}if(Object.keys(items).length)setLists([{...demoList,items}]);}if(typeof p.postcode==='string')setPostcode(postcodeFormat(p.postcode));setNight(!!p.night);}}
   const shared=new URLSearchParams(location.search).get('list');if(shared){const incoming=shareDecode(shared);if(incoming){setLists(old=>[...old,incoming]);setActiveId(incoming.id);setTab('lists');setMessage('Shared list imported');}history.replaceState(null,'',location.pathname);}
  }catch{}setReady(true)},[]);
- useEffect(()=>{if(ready)try{localStorage.setItem(key,JSON.stringify({lists,activeId,loyalty,selectedStores,budget,postcode,night,alerts}));}catch{}},[ready,lists,activeId,loyalty,selectedStores,budget,postcode,night,alerts]);
+ useEffect(()=>{if(ready)try{localStorage.setItem(key,JSON.stringify({lists,activeId,loyalty,selectedStores,budget,postcode:validPostcode(postcode)?postcodeFormat(postcode):'',night,alerts}));}catch{}},[ready,lists,activeId,loyalty,selectedStores,budget,postcode,night,alerts]);
  useEffect(()=>{if(!productId&&!storeId&&!info)return;function close(e:KeyboardEvent){if(e.key==='Escape'){setProductId(null);setStoreId(null);setInfo(false);lastFocus.current?.focus()}}window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[productId,storeId,info]);
  const change=(update:(current:GroceryList)=>GroceryList)=>setLists(old=>old.map(x=>x.id===list.id?update(x):x));
  const setItems=(fn:(prev:ListItems)=>ListItems)=>change(l=>({...l,items:fn(l.items)}));
- function qty(id:string,n:number){const prev=items[id]?.quantity||0;const next=Math.max(0,Math.min(99,prev+n));if(prev>0&&!next)setUndo({label:'Product removed',lists});setItems(old=>{const result={...old};if(!next)delete result[id];else result[id]={quantity:next,tier:old[id]?.tier||'Own-label',variant:old[id]?.variant||'standard'};return result;});}
+ function qty(id:string,n:number){const prev=items[id]?.quantity||0;const next=Math.max(0,Math.min(99,prev+n));if(prev>0&&!next)setUndo({label:'Product removed',lists,activeId});setItems(old=>{const result={...old};if(!next)delete result[id];else result[id]={quantity:next,tier:old[id]?.tier||'Own-label',variant:old[id]?.variant||'standard'};return result;});}
  function patch(id:string,key:'tier'|'variant',value:string){setItems(old=>({...old,[id]:{quantity:old[id]?.quantity||1,tier:key==='tier'?value as Tier:old[id]?.tier||'Own-label',variant:key==='variant'?value:old[id]?.variant||'standard'}}));}
  function selectTab(next:Tab){setTab(next);contentRef.current?.scrollTo({top:0,behavior:'auto'})}
  function modal(open:(id:string)=>void,id:string){lastFocus.current=document.activeElement as HTMLElement;open(id)}
@@ -62,8 +63,8 @@ export default function TrolleyScout(){
  function newList(){const name=nameDraft.trim().slice(0,45);if(!name)return;const id='list-'+Date.now();setLists(old=>[...old,{id,name,items:{},checked:{},custom:[]}]);setActiveId(id);setEditor(null);setNameDraft('');setShopMode(false);}
  function renameList(){const name=nameDraft.trim().slice(0,45);if(!name)return;change(l=>({...l,name}));setEditor(null);setNameDraft('')}
  function duplicate(){const id='list-'+Date.now();setLists(old=>[...old,{...list,id,name:list.name+' copy',checked:{}}]);setActiveId(id);snack('List duplicated')}
- function deleteList(){if(lists.length===1){snack('Keep at least one list');return;}setUndo({label:'List deleted',lists});setLists(lists.filter(l=>l.id!==list.id));setActiveId(lists.find(l=>l.id!==list.id)!.id)}
- function clearList(){setUndo({label:'Shopping list cleared',lists});change(l=>({...l,items:{},custom:[],checked:{}}));}
+ function deleteList(){if(lists.length===1){snack('Keep at least one list');return;}setUndo({label:'List deleted',lists,activeId});setLists(lists.filter(l=>l.id!==list.id));setActiveId(lists.find(l=>l.id!==list.id)!.id)}
+ function clearList(){setUndo({label:'Shopping list cleared',lists,activeId});change(l=>({...l,items:{},custom:[],checked:{}}));}
  function checked(id:string){change(l=>({...l,checked:{...l.checked,[id]:!l.checked[id]}}))}
  function finishShop(){change(l=>({...l,checked:{}}));setShopMode(false);snack('Shop finished; ticks cleared')}
  async function share(){const url=location.origin+'/app?list='+shareEncode(list);try{if(navigator.share){await navigator.share({title:'TrolleyScout — '+list.name,url});return}await navigator.clipboard.writeText(url);snack('Share link copied')}catch(e){if((e as Error).name==='AbortError')return;try{await navigator.clipboard.writeText(url);snack('Share link copied')}catch{snack('Could not copy link')}}}
@@ -71,7 +72,7 @@ export default function TrolleyScout(){
  function productRow(p:Product,compact=false){
   const e=items[p.id],has=e?.quantity>0,quote=priceFor(p.id,selectedStores[0]||'aldi',{tier:e?.tier,variant:e?.variant,loyalty});
   return <article key={p.id} className="v2-product">
-   <button className="v2-product-info" onClick={()=>modal(setProductId,p.id)} aria-label={'View '+p.name+' prices'}><span className="v2-emoji">{p.emoji}</span><span><strong>{p.name}</strong><small>{e?.tier||'Own-label'} · {p.variants.find(v=>v.id===(e?.variant||'standard'))?.label||p.pack}</small>{compact&&quote&&<small>From {money(quote.effectivePence)} · demo</small>}</span></button>
+   <button className="v2-product-info" onClick={()=>modal(setProductId,p.id)} aria-label={'View '+p.name+' prices'}><span className="v2-emoji">{p.emoji}</span><span><strong>{p.name}</strong><small>{e?.tier||'Own-label'} · {p.variants.find(v=>v.id===(e?.variant||'standard'))?.label||p.pack}</small>{compact&&quote&&<small>Example {money(quote.effectivePence)}</small>}</span></button>
    <div className="v2-counter"><button aria-label={'Remove one '+p.name} onClick={()=>qty(p.id,-1)}><Minus size={17}/></button><b>{e?.quantity||0}</b><button aria-label={'Add one '+p.name} onClick={()=>qty(p.id,1)}><Plus size={17}/></button></div>
   </article>;
  }
@@ -79,7 +80,7 @@ export default function TrolleyScout(){
   const {product:p,entry:e,quote:q}=line;const saving=e.tier==='Value'?0:(q?.effectivePence||0)-(priceFor(p.id,store!.storeId,{tier:'Value',variant:e.variant,loyalty})?.effectivePence||0);
   return <div key={p.id} className="v2-breakdown-line"><span className="v2-line-icon">{p.emoji}</span><div className="v2-line-text"><strong>{p.name}</strong><small>{e.quantity} × {q?.packSize||p.pack} · {e.tier}</small>{q&&<small>{showUnit(p,q.unitPricePence)}{q.daysOld>7?' · May be out of date':' · Demo checked '+q.daysOld+'d ago'}</small>}{!q&&<small>Not available at this store</small>}{saving>0&&<button className="v2-swap" onClick={()=>{patch(p.id,'tier','Value');snack('Swapped to Value tier')}}>Swap to Value, save {money(saving*e.quantity)} <ArrowRight size={12}/></button>}</div><b>{q?money(q.effectivePence*e.quantity):'N/A'}</b></div>;
  };
- const num=Number(budget),hasBudget=budget.trim()!==''&&Number.isFinite(num)&&num>=0;
+ const num=Number(budget),hasBudget=budget.trim()!==''&&Number.isFinite(num)&&num>=0&&num<=10000;
  return <main className={'v2-page '+(night?'v2-dark':'')}><div className="v2-phone">
   <header className="v2-top"><b>trolleyscout<span>.</span></b><small>● DEMO PRICES</small></header>
   <div className="v2-scroll" ref={contentRef}>
@@ -121,7 +122,7 @@ export default function TrolleyScout(){
     <section className="v2-panel"><h2><BadgePercent size={20}/> My loyalty cards</h2><p>Only apply example member prices when you have the card.</p>{loyaltySchemes.map(s=><label className="v2-toggle" key={s.id}><span>{s.name}</span><input type="checkbox" checked={loyalty.includes(s.id)} onChange={()=>toggle(s.id,loyalty,setLoyalty)}/><i/></label>)}</section>
     <section className="v2-panel"><h2><Store size={20}/> My stores</h2><p>Only include supermarkets you can actually visit.</p>{stores.map(s=><label className="v2-toggle" key={s.id}><span>{s.name}</span><input type="checkbox" checked={selectedStores.includes(s.id)} onChange={()=>{if(selectedStores.length===1&&selectedStores.includes(s.id)){snack('Choose at least one supermarket');return}toggle(s.id,selectedStores,setSelectedStores)}}/><i/></label>)}</section>
     <section className="v2-panel"><h2><ShoppingBasket size={20}/> Weekly budget</h2><label className="v2-field">Your budget (£)<input type="number" inputMode="decimal" step="0.01" min="0" max="10000" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="e.g. 65.00"/></label>{budget&&(!Number.isFinite(num)||num<0||num>10000)&&<p className="v2-invalid">Enter a budget between £0 and £10,000.</p>}</section>
-    <section className="v2-panel"><h2><MapPin size={20}/> Shopping postcode</h2><p>Saved for future local prices; no local prices are connected.</p><input value={postcode} maxLength={10} onChange={e=>setPostcode(e.target.value.toUpperCase())} onBlur={()=>setPostcode(postcodeFormat(postcode))} placeholder="B15 2TT" aria-label="Shopping postcode"/></section>
+    <section className="v2-panel"><h2><MapPin size={20}/> Shopping postcode</h2><p>Saved for future local prices; no local prices are connected.</p><input value={postcode} maxLength={10} aria-invalid={!validPostcode(postcode)} onChange={e=>setPostcode(e.target.value.toUpperCase())} onBlur={()=>{if(validPostcode(postcode))setPostcode(postcodeFormat(postcode))}} placeholder="B15 2TT" aria-label="Shopping postcode"/>{!validPostcode(postcode)&&<p className="v2-invalid" role="alert">Enter a valid UK postcode, e.g. B15 2TT. Invalid entries are not saved.</p>}</section>
     <section className="v2-panel"><h2><Moon size={20}/> Appearance and alerts</h2><label className="v2-toggle"><span>Dark mode</span><input type="checkbox" checked={night} onChange={()=>setNight(x=>!x)}/><i/></label><p>{alerts.length} price drop alert{alerts.length===1?'':'s'} saved locally. No notifications are sent yet.</p></section>
    </>}
   </div>
@@ -141,7 +142,7 @@ export default function TrolleyScout(){
   {info&&<p>Fictional demonstration prices; real retailer feeds are not connected.</p>}
   <p className="v2-disclaimer">Demonstration prices only. Not real retailer offers.</p>
  </section></div>}
- {undo&&<div className="v2-toast" role="status"><span>{undo.label}</span><button onClick={()=>{setLists(undo.lists);setUndo(null)}}>Undo</button><button aria-label="Dismiss" onClick={()=>setUndo(null)}><X size={17}/></button></div>}
+ {undo&&<div className="v2-toast" role="status"><span>{undo.label}</span><button onClick={()=>{setLists(undo.lists);setActiveId(undo.activeId);setUndo(null)}}>Undo</button><button aria-label="Dismiss" onClick={()=>setUndo(null)}><X size={17}/></button></div>}
  {message&&<div className="v2-toast" role="status"><span>{message}</span><button aria-label="Dismiss" onClick={()=>setMessage('')}><X size={17}/></button></div>}
  </main>;
 }
