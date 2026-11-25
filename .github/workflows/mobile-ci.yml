@@ -1,0 +1,29 @@
+name: Mobile CI
+on:
+  push:
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/core/**'
+      - 'package.json'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/core/**'
+      - 'package.json'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check comparison engine
+        run: npm test
+      - name: Typecheck Expo app
+        run: npm run typecheck -w @trolleyscout/mobile
