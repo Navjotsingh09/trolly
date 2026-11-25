@@ -1,17 +1,22 @@
 {
   "name": "@trolleyscout/mobile",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "ios": "expo start --ios"
+    "ios": "expo start --ios",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@trolleyscout/core": "*",
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~54.0.0",
     "expo-router": "~6.0.0",
     "expo-status-bar": "~3.0.0",
+    "expo-blur": "~15.0.0",
+    "expo-linear-gradient": "~15.0.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",
