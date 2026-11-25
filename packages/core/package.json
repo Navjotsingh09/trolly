@@ -4,6 +4,7 @@
   "type": "module",
   "main": "./src/index.mjs",
   "exports": {
-    ".": "./src/index.mjs"
+    ".": "./src/index.mjs",
+    "./phase1": "./src/phase1.mjs"
   }
 }
