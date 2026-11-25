@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, useColorScheme, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -48,7 +48,6 @@ function App() {
   const [welcome,setWelcome]=useState(false);
   const [darkMode,setDarkMode]=useState(false);
   const [info,setInfo]=useState(false);
-  const scheme=useColorScheme();
   const c:Palette=darkMode?dark:light;
   const {width}=useWindowDimensions();
   const insets=useSafeAreaInsets();
@@ -93,7 +92,7 @@ function App() {
   const pill=(text:string,selected=false,onPress?:()=>void,iconName?:IconName)=><Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{selected}} style={[s.pill,{backgroundColor:selected?c.green:c.card,borderColor:selected?c.green:c.line}]}>
     {iconName&&icon(iconName,15,selected?'#FFF':c.icon)}{t(text,13,true,selected?'#FFF':c.text)}
   </Pressable>;
-  const primary=(label:string,onPress:()=>void,disabled=false,secondary=false)=><Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{disabled}} style={[s.primary,{backgroundColor:secondary?c.pale:c.green,opacity:disabled?.45:1}]}>
+  const primary=(label:string,onPress:()=>void,disabled=false,secondary=false)=><Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{disabled}} style={[s.primary,{backgroundColor:secondary?c.pale:c.green,opacity:disabled ? 0.45 : 1}]}>
     {t(label,15,true,secondary?c.text:'#FFF')}{icon('arrow-forward',18,secondary?c.text:'#FFF')}
   </Pressable>;
   const productRow=(p:Product)=>{
@@ -188,7 +187,7 @@ function App() {
       {key:'compare',label:'Compare',symbol:'bar-chart-outline'},
       {key:'you',label:'You',symbol:'person-outline'}
     ];
-    return <View style={[s.navOuter,tablet?{width:110,height:'100%',paddingTop:insets.top+35,paddingBottom:insets.bottom+24,justifyContent:'center'}:{left:16,right:16,bottom:Math.max(insets.bottom,12)+7}]}>
+    return <View style={[s.navOuter,tablet?{position:'relative',width:110,height:'100%',paddingTop:insets.top+35,paddingBottom:insets.bottom+24,justifyContent:'center'}:{left:16,right:16,bottom:Math.max(insets.bottom,12)+7}]}>
       <BlurView intensity={Platform.OS==='ios'?70:0} tint={darkMode?'dark':'light'} style={[s.navGlass,{backgroundColor:c.glass,flexDirection:tablet?'column':'row',paddingVertical:tablet?20:9}]}>
         {entries.map(entry=><Pressable key={entry.key} onPress={()=>go(entry.key)} accessibilityRole="tab" accessibilityState={{selected:tab===entry.key}} style={[s.navButton,tablet&&{height:90},tab===entry.key&&{backgroundColor:c.pale}]}>
           {icon(entry.symbol,23,tab===entry.key?c.icon:c.sub)}
