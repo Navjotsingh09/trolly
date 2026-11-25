@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "TrolleyScout",
+    "slug": "trolleyscout",
+    "scheme": "trolleyscout",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "uk.trolleyscout.app"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
