@@ -37,7 +37,7 @@ export default function AppPreview(){
  function navigate(to:Tab){setTab(to);setSearch('');setStore(null);setProduct(null);document.querySelector('.ts-body')?.scrollTo({top:0,behavior:'instant'})}
  function toggleFavorite(id:string){setFavorites(a=>a.includes(id)?a.filter(v=>v!==id):[...a,id])}
  function notify(message:string){setToast(message);window.setTimeout(()=>setToast(''),2800)}
- useEffect(()=>{if(!selectedStore&&!selectedProduct)return;function onKey(e:KeyboardEvent){if(e.key==='Escape'){setStore(null);setProduct(null);}}document.addEventListener('keydown',onKey);return ()=>document.removeEventListener('keydown',onKey)},[selectedStore,selectedProduct]);
+ useEffect(()=>{if(!store&&!product)return;function onKey(e:KeyboardEvent){if(e.key==='Escape'){setStore(null);setProduct(null);}}document.addEventListener('keydown',onKey);return ()=>document.removeEventListener('keydown',onKey)},[store,product]);
  const displayed=products.filter(p=>(filter==='All'||category(p.id)===filter)&&p.name.toLowerCase().includes(search.toLowerCase()));
  const selectedStore=totals.find(s=>s.id===store);
  const selectedProduct=products.find(p=>p.id===product);
