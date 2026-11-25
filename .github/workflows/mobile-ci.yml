@@ -14,16 +14,16 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Install dependencies
+      - name: Install workspaces
         run: npm install --no-audit --no-fund
-      - name: Check comparison engine
+      - name: Test price calculations
         run: npm test
-      - name: Typecheck Expo app
+      - name: Check iOS and iPad source types
         run: npm run typecheck -w @trolleyscout/mobile
