@@ -63,7 +63,7 @@ export default function AppPreview(){
       <div className="ts-summary"><div><span>IN YOUR TROLLEY</span><strong>{distinctCount} products</strong><small>{count} total units</small></div><ShoppingBasket size={46}/></div>
       <div className="ts-section-head"><h3>Everything you need</h3><button className="ts-link" onClick={()=>navigate('home')}>Add items <Plus size={16}/></button></div>
       {list.length?<div className="ts-product-list">{list.map(row)}</div>:<div className="ts-empty"><ShoppingBasket size={34}/>Your trolley is empty.<button className="ts-main-btn" onClick={()=>navigate('home')}>Browse groceries</button></div>}
-      {count>0&&<><button className="ts-main-btn" onClick={()=>navigate('compare')}>Compare {distinctCount} products <ArrowRight size={18}/></button><button className="ts-clear" onClick={()=>{if(confirm('Remove every item from your trolley?'))setBasket({});setUndoItem(null)}}}>Clear shopping list</button></>}
+      {count>0&&<><button className="ts-main-btn" onClick={()=>navigate('compare')}>Compare {distinctCount} products <ArrowRight size={18}/></button><button className="ts-clear" onClick={()=>{if(confirm('Remove every item from your trolley?'))setBasket({});setUndoItem(null)}}>Clear shopping list</button></>}
     </>}
     {tab==='compare'&&<>
       <div className="ts-overline">THE SMARTER COMPARISON</div><h1>Better basket<span>.</span></h1><p className="ts-lead">Compare complete example baskets across eight UK supermarkets.</p>
