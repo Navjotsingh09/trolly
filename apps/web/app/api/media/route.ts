@@ -83,7 +83,7 @@ export async function GET(request:NextRequest){
  try {
   if(database){
    sql=neon(database);
-   const saved=await sql`SELECT source_url,file_page_url,credit,license,updated_at FROM public.media_assets WHERE asset_key=${key} AND updated_at > now()-interval '21 days' LIMIT 1`;
+   const saved=await sql`SELECT source_url,file_page_url,credit,license,updated_at FROM public.media_assets WHERE asset_key=${key} AND updated_at > now()-interval '21 days' LIMIT 1` as unknown as Array<{source_url:string|null;file_page_url:string|null;credit:string|null;license:string|null}>;
    if(saved.length)return NextResponse.json({...fallback,photo:saved[0].source_url?{src:saved[0].source_url,page:saved[0].file_page_url,credit:saved[0].credit,license:saved[0].license}:null},{headers:{'Cache-Control':'public, max-age=86400, s-maxage=604800'}});
   }
   const params=new URLSearchParams({action:'query',format:'json',generator:'search',gsrsearch:kind==='logo'?'File:'+term:'File:'+term,gsrnamespace:'6',gsrlimit:'10',prop:'imageinfo',iiprop:'url|extmetadata',iiurlwidth:'480',origin:'*'});
