@@ -12,8 +12,10 @@ type Props={
  onSelect:(storeId:string,enabled:boolean)=>void;
  chosenBranches:Record<string,string>;
  onChooseBranch:(storeId:string,branchId:string)=>void;
+ onUseNearby:(ids:string[])=>void;
+ onShowAll:()=>void;
 };
-export default function NearbyStores({postcode,selectedStores,onSelect,chosenBranches,onChooseBranch}:Props){
+export default function NearbyStores({postcode,selectedStores,onSelect,chosenBranches,onChooseBranch,onUseNearby,onShowAll}:Props){
  const [data,setData]=useState<Reply|null>(null);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(true);
@@ -44,6 +46,7 @@ export default function NearbyStores({postcode,selectedStores,onSelect,chosenBra
   {!loading&&error&&<div className="v2-nearby-error" role="alert"><AlertCircle size={19}/><span>{error}</span><button onClick={()=>setRetry(n=>n+1)}>Retry</button></div>}
   {!loading&&data&&<><div className="v2-nearby-count"><CheckCircle2 size={16}/><span>{data.branches.length} mapped branches · {groups.length} supermarket chains · within {data.radiusKm} km</span></div>
    {!groups.length&&<p className="v2-muted">No participating supermarket branches were found in the map data within 8 km. You can still choose supermarkets under My stores.</p>}
+   {groups.length>0&&<div className="v2-nearby-actions"><button onClick={()=>onUseNearby(groups.map(g=>g.store.id))}>Compare these {groups.length} nearby chains</button><button onClick={onShowAll}>Show all 8</button></div>}
    {groups.map(({store,branches,chosen})=><div className="v2-nearby-store" key={store.id}>
     <div className="v2-nearby-main">
       <MediaAsset id={store.id} kind="logo" alt={store.name+' logo'} fallback={store.name[0]}/>
