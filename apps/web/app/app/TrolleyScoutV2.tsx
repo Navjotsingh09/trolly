@@ -9,6 +9,7 @@ type Tab='discover'|'lists'|'compare'|'you';
 type CustomItem={id:string;name:string};
 type GroceryList={id:string;name:string;items:ListItems;checked:Record<string,boolean>;custom:CustomItem[]};
 type Notice={label:string;undo?:{lists:GroceryList[];activeId:string};priority:number};
+type VerifiedPostcode={valid:true;postcode:string;district:string|null;ward:string|null;region:string|null;country:string|null;outcode:string|null};
 const aisleOrder=['Fruit & veg','Bakery','Dairy','Meat & fish','Frozen','Cupboard','Drinks','Household','Toiletries','Baby','Custom'];
 const stableCustom=(value:unknown,index:number):CustomItem|null=>{if(typeof value==='string')return {id:'custom-legacy-'+index+'-'+value.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,24),name:value.slice(0,70)};if(value&&typeof value==='object'&&typeof (value as CustomItem).name==='string'){const item=value as CustomItem;return {id:typeof item.id==='string'&&/^custom-[a-zA-Z0-9-]{1,100}$/.test(item.id)?item.id:'custom-legacy-'+index,name:item.name.slice(0,70)}}return null};
 const normalizeCustom=(raw:unknown):CustomItem[]=>Array.isArray(raw)?raw.slice(0,40).map(stableCustom).filter((x):x is CustomItem=>x!==null):[];
@@ -26,12 +27,14 @@ export default function TrolleyScout(){
  const [tab,setTab]=useState<Tab>('discover'),[lists,setLists]=useState<GroceryList[]>([demoList]),[activeId,setActiveId]=useState('weekly');
  const [loyalty,setLoyalty]=useState<string[]>([]),[selectedStores,setSelectedStores]=useState<string[]>(stores.map(x=>x.id));
  const [budget,setBudget]=useState(''),[postcode,setPostcode]=useState(''),[night,setNight]=useState(false);
+ const [postcodeInfo,setPostcodeInfo]=useState<VerifiedPostcode|null>(null),[postcodeError,setPostcodeError]=useState(''),[postcodeChecking,setPostcodeChecking]=useState(false),[postcodeCheckKey,setPostcodeCheckKey]=useState(0);
  const [query,setQuery]=useState(''),[category,setCategory]=useState('All'),[productId,setProductId]=useState<string|null>(null),[storeId,setStoreId]=useState<string|null>(null);
  const [remoteCatalogue,setRemoteCatalogue]=useState<Product[]|null>(null);
  const [shopMode,setShopMode]=useState(false),[alerts,setAlerts]=useState<string[]>([]),[editor,setEditor]=useState<'new'|'rename'|null>(null),[nameDraft,setNameDraft]=useState('');
  const [notice,setNotice]=useState<Notice|null>(null),[ready,setReady]=useState(false),[info,setInfo]=useState(false);
  const contentRef=useRef<HTMLDivElement>(null),lastFocus=useRef<HTMLElement|null>(null);
  const viewCatalogue=remoteCatalogue??catalogue;
+ const postcodeConfirmed=postcodeInfo!==null&&postcodeInfo.postcode.replace(/\s/g,'')===postcode.replace(/\s/g,'').toUpperCase();
  const list=lists.find(x=>x.id===activeId)||lists[0];
  const items=list.items;
  const matches=useMemo(()=>compareBasket(items,{stores:selectedStores,loyalty}),[items,selectedStores,loyalty]);
@@ -59,7 +62,27 @@ export default function TrolleyScout(){
  }else{const old=localStorage.getItem('trolleyscout-preview');if(old){const p=JSON.parse(old);if(p.basket){const items:ListItems={};for(const [id,q]of Object.entries(p.basket)){if(viewCatalogue.some(x=>x.id===id)&&Number.isInteger(q)&&Number(q)>0)items[id]={quantity:Number(q),tier:'Own-label',variant:'standard'};}if(Object.keys(items).length)setLists([{...demoList,items}]);}if(typeof p.postcode==='string')setPostcode(postcodeFormat(p.postcode));setNight(!!p.night);}}
   const shared=new URLSearchParams(location.search).get('list');if(shared){const incoming=shareDecode(shared);if(incoming){setLists(old=>[...old,incoming]);setActiveId(incoming.id);setTab('lists');setNotice({label:'Shared list imported',priority:0});}else setNotice({label:'That list link couldn’t be opened',priority:0});history.replaceState(null,'',location.pathname);}
  }catch{}setReady(true)},[]);
- useEffect(()=>{if(ready)try{localStorage.setItem(key,JSON.stringify({lists,activeId,loyalty,selectedStores,budget,postcode:validPostcode(postcode)?postcodeFormat(postcode):'',night,alerts}));}catch{}},[ready,lists,activeId,loyalty,selectedStores,budget,postcode,night,alerts]);
+ useEffect(()=>{if(ready)try{localStorage.setItem(key,JSON.stringify({lists,activeId,loyalty,selectedStores,budget,postcode:postcodeConfirmed?postcodeInfo!.postcode:'',night,alerts}));}catch{}},[ready,lists,activeId,loyalty,selectedStores,budget,postcode,postcodeConfirmed,postcodeInfo,night,alerts]);
+ useEffect(()=>{
+  if(!ready)return;
+  const candidate=postcode.trim().toUpperCase().replace(/\s+/g,'');
+  if(!candidate){setPostcodeInfo(null);setPostcodeError('');setPostcodeChecking(false);return;}
+  if(!validPostcode(candidate)){setPostcodeInfo(null);setPostcodeError('Enter a full UK postcode, e.g. B67 7BX.');setPostcodeChecking(false);return;}
+  if(postcodeConfirmed){setPostcodeError('');setPostcodeChecking(false);return;}
+  const controller=new AbortController();
+  setPostcodeChecking(true);setPostcodeError('');
+  const timeout=window.setTimeout(async()=>{
+   try{
+    const response=await fetch('/api/postcode?postcode='+encodeURIComponent(candidate),{signal:controller.signal});
+    const data=await response.json();
+    if(controller.signal.aborted)return;
+    if(!response.ok||data.valid!==true){setPostcodeInfo(null);setPostcodeError(typeof data.error==='string'?data.error:'Postcode not found.');return;}
+    setPostcodeInfo(data as VerifiedPostcode);setPostcodeError('');
+   }catch(e){if(!controller.signal.aborted){setPostcodeInfo(null);setPostcodeError('Could not check the postcode. Please try again.');}}
+   finally{if(!controller.signal.aborted)setPostcodeChecking(false);}
+  },postcodeCheckKey?80:450);
+  return()=>{controller.abort();window.clearTimeout(timeout)};
+ },[postcode,ready,postcodeCheckKey,postcodeConfirmed]);
  useEffect(()=>{const controller=new AbortController();fetch('/api/catalogue',{signal:controller.signal}).then(async r=>{if(!r.ok)throw new Error('Catalogue unavailable');return r.json()}).then(data=>{if(Array.isArray(data.catalogue)&&data.catalogue.length>=60&&data.metadata?.source==='fictional-demonstration'){setRemoteCatalogue(data.catalogue as Product[])}}).catch(()=>{});return ()=>controller.abort()},[]);
  useEffect(()=>{if(!notice)return;const timeout=window.setTimeout(()=>setNotice(null),6000);return()=>window.clearTimeout(timeout)},[notice]);
  useEffect(()=>{if(!productId&&!storeId&&!info)return;function close(e:KeyboardEvent){if(e.key==='Escape'){setProductId(null);setStoreId(null);setInfo(false);lastFocus.current?.focus()}}window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[productId,storeId,info]);
@@ -136,7 +159,7 @@ export default function TrolleyScout(){
     <section className="v2-panel"><h2><BadgePercent size={20}/> My loyalty cards</h2><p>Only apply example member prices when you have the card.</p>{loyaltySchemes.map(s=><label className="v2-toggle" key={s.id}><span>{s.name}</span><input type="checkbox" checked={loyalty.includes(s.id)} onChange={()=>toggle(s.id,loyalty,setLoyalty)}/><i/></label>)}</section>
     <section className="v2-panel"><h2><Store size={20}/> My stores</h2><p>Only include supermarkets you can actually visit.</p>{stores.map(s=><label className="v2-toggle" key={s.id}><MediaAsset id={s.id} kind="logo" alt={s.name+' logo'} fallback={s.name[0]}/><span>{s.name}</span><input type="checkbox" checked={selectedStores.includes(s.id)} onChange={()=>{if(selectedStores.length===1&&selectedStores.includes(s.id)){snack('Choose at least one supermarket');return}toggle(s.id,selectedStores,setSelectedStores)}}/><i/></label>)}</section>
     <section className="v2-panel"><h2><ShoppingBasket size={20}/> Weekly budget</h2><label className="v2-field">Your budget (£)<input type="number" inputMode="decimal" step="0.01" min="0" max="10000" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="e.g. 65.00"/></label>{budget&&(!Number.isFinite(num)||num<0||num>10000)&&<p className="v2-invalid">Enter a budget between £0 and £10,000.</p>}</section>
-    <section className="v2-panel"><h2><MapPin size={20}/> Shopping postcode</h2><p>Saved for future local prices; no local prices are connected.</p><input value={postcode} maxLength={10} aria-invalid={!validPostcode(postcode)} onChange={e=>setPostcode(e.target.value.toUpperCase())} onBlur={()=>{if(validPostcode(postcode))setPostcode(postcodeFormat(postcode))}} placeholder="B15 2TT" aria-label="Shopping postcode"/>{!validPostcode(postcode)&&<p className="v2-invalid" role="alert">Enter a valid UK postcode, e.g. B15 2TT. Invalid entries are not saved.</p>}</section>
+    <section className="v2-panel"><h2><MapPin size={20}/> Shopping postcode</h2><p>Check your UK postcode to confirm your shopping area. Local supermarket prices are not yet connected.</p><label className="v2-field">UK postcode<input value={postcode} maxLength={10} autoComplete="postal-code" aria-invalid={!!postcodeError||!!postcode.trim()&&!validPostcode(postcode)} aria-describedby="postcode-status" onChange={e=>{setPostcode(e.target.value.toUpperCase());setPostcodeInfo(null);setPostcodeError('')}} onBlur={()=>{if(validPostcode(postcode))setPostcode(postcodeFormat(postcode))}} placeholder="e.g. B67 7BX" aria-label="Shopping postcode"/></label><button className="v2-postcode-check" disabled={!postcode.trim()||!validPostcode(postcode)||postcodeChecking} onClick={()=>setPostcodeCheckKey(n=>n+1)}>{postcodeChecking?'Checking postcode…':postcodeConfirmed?'Check again':'Check postcode'}</button><div id="postcode-status" aria-live="polite">{postcodeChecking&&<p className="v2-postcode-feedback">Checking against UK postcode records…</p>}{!postcodeChecking&&postcodeError&&<p className="v2-invalid" role="alert">{postcodeError}</p>}{!postcodeChecking&&postcodeConfirmed&&<div className="v2-postcode-success"><strong>✓ Postcode recognised: {postcodeInfo!.postcode}</strong><span>{[postcodeInfo!.ward,postcodeInfo!.district,postcodeInfo!.region||postcodeInfo!.country].filter((x,i,a)=>x&&a.indexOf(x)===i).join(' · ')}</span><small>Area confirmed. Prices are still national fictional examples.</small></div>}</div></section>
     <section className="v2-panel"><h2><Moon size={20}/> Appearance and alerts</h2><label className="v2-toggle"><span>Dark mode</span><input type="checkbox" checked={night} onChange={()=>setNight(x=>!x)}/><i/></label><p>{alerts.length} price drop alert{alerts.length===1?'':'s'} saved locally. No notifications are sent yet.</p></section>
     <section className="v2-panel"><h2><Sparkles size={20}/> Membership</h2><p>Our 1p/month membership is an idea for the future. Subscriptions and payments are not enabled in this demo.</p></section>
    </>}
