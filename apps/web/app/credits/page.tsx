@@ -9,14 +9,14 @@ export default async function Credits(){
  try {
   if(process.env.DATABASE_URL){
    const sql=neon(process.env.DATABASE_URL);
-   records=await sql`SELECT asset_key,source_url,file_page_url,credit,license FROM public.media_assets WHERE source_url IS NOT NULL ORDER BY asset_key` as Asset[];
+   records=await sql`SELECT asset_key,source_url,file_page_url,credit,license FROM public.media_assets WHERE source_url IS NOT NULL AND review_status='approved' ORDER BY asset_key` as Asset[];
   }
  }catch{error=true}
  return <main style={{maxWidth:880,margin:'0 auto',padding:'48px 20px',fontFamily:'Arial,sans-serif',lineHeight:1.65,color:'#17432d'}}>
  <Link href="/app">← Back to TrolleyScout</Link>
  <h1>Photo and supermarket logo credits</h1>
  <p>TrolleyScout sources preview product photography and retailer logo files from Wikimedia Commons. Photo filenames, creators and the applicable reuse terms are linked below. These images illustrate product categories; they do not imply that a named supermarket stocks or sells that exact pack.</p>
- <p>Pictures load on demand. This page lists images that have been retrieved and cached so far. Individual files retain their stated terms and authorship. TrolleyScout is independent of the supermarkets shown.</p>
+ <p>Pictures load on demand. This page lists images reviewed and approved for display. Individual files retain their stated terms and authorship. TrolleyScout is independent of the supermarkets shown.</p>
  {error&&<p>Image credits are temporarily unavailable.</p>}
  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:12}}>
  {records.map(a=><article key={a.asset_key} style={{border:'1px solid #dce7dd',borderRadius:14,padding:14,overflowWrap:'anywhere'}}>
