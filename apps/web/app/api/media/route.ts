@@ -38,6 +38,13 @@ const productSearch:Record<string,string>={
   nappies:'baby disposable diapers nappies photo',wipes:'baby wet wipes packet photograph',
   'baby-food':'baby food fruit puree pouch photo','baby-bath':'baby wash bottle photograph'
 };
+const exactFiles:Record<string,string>={
+ milk:'File:Milk carton.jpg',
+ wipes:'File:Baby wipes.jpg',
+ 'baby-food':'File:Storebought baby food - fruit and vegetable puree in glass and pouch.jpg',
+ beans:'File:A can of baked beans.jpg',
+ beef:'File:Beef mince.jpg'
+};
 const logoSearch:Record<string,string>={
  tesco:'Tesco 2016 logo',sainsburys:"Sainsbury's Logo",aldi:'Aldi Süd logo',
  asda:'Asda logo',lidl:'Lidl logo',morrisons:'Morrisons logo',
@@ -56,7 +63,7 @@ function choose(data:any,kind:string,term:string):Photo|null {
   const isLogo=/\.(svg|png|jpg|jpeg|webp)$/i.test(name);
   const free=/CC0|CC BY|Public domain|PD-|GFDL/i.test(license);
   const lower=name.toLowerCase();
-  const banned=kind==='product'&&/logo|icon|flag|map|diagram|stamp|poster|illustration|drawing|animation|symbol|coat.of.arms|screenshot/i.test(lower);
+  const banned=kind==='product'&&/logo|icon|flag|map|diagram|stamp|poster|illustration|drawing|animation|symbol|coat.of.arms|screenshot|candy|pie|plantation|market stall|shopfront|farmland|advertisement/i.test(lower);
   if(!url||!/^https:\/\//.test(url)||!free||banned||!(kind==='logo'?isLogo:isPhoto))return null;
   let score=0;
   for(const word of term.toLowerCase().split(/\s+/).filter(x=>x.length>3))if(lower.includes(word))score+=3;
@@ -84,14 +91,23 @@ export async function GET(request:NextRequest){
   if(database){
    sql=neon(database);
    const saved=await sql`SELECT source_url,file_page_url,credit,license,updated_at FROM public.media_assets WHERE asset_key=${key} AND updated_at > now()-interval '21 days' LIMIT 1` as unknown as Array<{source_url:string|null;file_page_url:string|null;credit:string|null;license:string|null}>;
-   if(saved.length)return NextResponse.json({...fallback,photo:saved[0].source_url?{src:saved[0].source_url,page:saved[0].file_page_url,credit:saved[0].credit,license:saved[0].license}:null},{headers:{'Cache-Control':'public, max-age=86400, s-maxage=604800'}});
+   if(saved.length&&saved[0].source_url&&!/Baked_Beans_Candy|Mince_beef_.*onion_pie|Vegetable_plantations/i.test(saved[0].source_url))return NextResponse.json({...fallback,photo:saved[0].source_url?{src:saved[0].source_url,page:saved[0].file_page_url,credit:saved[0].credit,license:saved[0].license}:null},{headers:{'Cache-Control':'public, max-age=86400, s-maxage=604800'}});
   }
-  const params=new URLSearchParams({action:'query',format:'json',generator:'search',gsrsearch:kind==='logo'?'File:'+term:'File:'+term,gsrnamespace:'6',gsrlimit:'10',prop:'imageinfo',iiprop:'url|extmetadata',iiurlwidth:'480',origin:'*'});
-  const response=await fetch('https://commons.wikimedia.org/w/api.php?'+params,{signal:AbortSignal.timeout(9000),headers:{'User-Agent':'TrolleyScout/0.2 (grocery comparison demo; Wikimedia Commons attribution)',Accept:'application/json'},next:{revalidate:86400}});
-  if(!response.ok)throw new Error('Media source unavailable');
-  const result=await response.json();
-  const photo=choose(result,kind,term);
-  if(sql){
+  let photo:Photo|null=null;
+  const exact=kind==='product'?exactFiles[id]:null;
+  const shortTerm=kind==='logo'?term:term.split(/\\s+/).slice(0,2).join(' ');
+  const searches=exact?[{exact}]:[{query:'File:'+shortTerm},{query:'File:'+term.split(/\\s+/)[0]}];
+  for(const search of searches){
+    const params=new URLSearchParams({action:'query',format:'json',prop:'imageinfo',iiprop:'url|extmetadata',iiurlwidth:'480',origin:'*'});
+    if('exact'in search){params.set('titles',search.exact)}else {params.set('generator','search');params.set('gsrsearch',search.query);params.set('gsrnamespace','6');params.set('gsrlimit','12')}
+    try{
+      const response=await fetch('https://commons.wikimedia.org/w/api.php?'+params,{signal:AbortSignal.timeout(8500),headers:{'User-Agent':'TrolleyScout/0.3 (grocery photo credits; see trolleyscout.vercel.app/credits)',Accept:'application/json'},next:{revalidate:86400}});
+      if(!response.ok)continue;
+      photo=choose(await response.json(),kind,term);
+      if(photo)break;
+    }catch{/* Try next narrow search. */}
+  }
+  if(sql&&photo){
    await sql`INSERT INTO public.media_assets(asset_key,source_url,file_page_url,credit,license,query_text,updated_at) VALUES(${key},${photo?.src||null},${photo?.page||null},${photo?.credit||null},${photo?.license||null},${term},now()) ON CONFLICT(asset_key) DO UPDATE SET source_url=excluded.source_url,file_page_url=excluded.file_page_url,credit=excluded.credit,license=excluded.license,query_text=excluded.query_text,updated_at=now()`.catch(()=>{});
   }
   return NextResponse.json({...fallback,photo},{headers:{'Cache-Control':'public,max-age=86400,s-maxage=604800'}});
