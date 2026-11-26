@@ -160,3 +160,8 @@
 .v2-spin{animation:v2-spin 1.2s linear infinite;}
 @keyframes v2-spin{to{transform:rotate(360deg);}}
 @media(prefers-reduced-motion:reduce){.v2-spin{animation:none}.v2-nearby-toggle span:before{transition:none}}
+
+.v2-nearby-actions{display:flex;gap:8px;margin:13px 0 10px;flex-wrap:wrap;}
+.v2-nearby-actions button{font-size:11px;font-weight:850;min-height:46px;border-radius:12px;padding:10px 12px;cursor:pointer;}
+.v2-nearby-actions button:first-child{flex:1;background:var(--accent);color:#fff;border:1px solid var(--accent);}
+.v2-nearby-actions button:last-child{background:var(--pale);color:var(--text);border:1px solid var(--line);}
