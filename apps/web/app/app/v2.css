@@ -126,3 +126,37 @@
 .v2-postcode-success span{font-size:12px;color:var(--text);}
 .v2-postcode-success small{font-size:11px;line-height:1.5;color:var(--muted);}
 .v2-panel .v2-invalid{margin:12px 0 0;font-size:12px;line-height:1.5;color:#ba4545;}
+
+/* Nearby supermarkets: address, branch switcher, map and comparison toggle */
+.v2-nearby-heading{display:flex;align-items:center;gap:9px;margin:0 0 9px;}
+.v2-nearby-heading h2{margin:0;font-size:17px;}
+.v2-nearby-count{display:flex;align-items:center;gap:7px;color:#328453;background:var(--pale);padding:11px 12px;border-radius:12px;font-weight:750;font-size:11px;margin:14px 0;}
+.v2-nearby-loading{display:flex;align-items:center;gap:9px;font-size:12px;padding:17px 7px;color:var(--muted);}
+.v2-nearby-error{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--pale);padding:12px;border-radius:13px;font-size:12px;color:var(--text);}
+.v2-nearby-error span{flex:1;min-width:130px;}
+.v2-nearby-error button{border:1px solid var(--line);background:var(--card);padding:9px 12px;border-radius:10px;min-height:44px;font-weight:800;}
+.v2-nearby-store{padding:14px 0;border-top:1px solid var(--line);}
+.v2-nearby-main{display:flex;align-items:center;gap:10px;min-height:44px;}
+.v2-nearby-main .v2-media{width:40px;height:40px;flex:none;border-radius:10px;}
+.v2-nearby-name{flex:1;min-width:0;}
+.v2-nearby-name strong,.v2-nearby-name small{display:block;}
+.v2-nearby-name strong{font-size:13px;}
+.v2-nearby-name small{font-size:11px;line-height:1.5;color:var(--muted);margin-top:2px;}
+.v2-nearby-toggle{position:relative;display:inline-flex;align-items:center;justify-content:center;width:48px;height:44px;flex:none;cursor:pointer;}
+.v2-nearby-toggle input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1;}
+.v2-nearby-toggle span{display:block;width:44px;height:27px;border-radius:22px;background:#CBD9CC;position:relative;}
+.v2-nearby-toggle span:before{content:'';width:21px;height:21px;background:#fff;position:absolute;top:3px;left:3px;border-radius:50%;transition:transform .15s;}
+.v2-nearby-toggle input:checked+span{background:#3A9562;}
+.v2-nearby-toggle input:checked+span:before{transform:translateX(17px);}
+.v2-nearby-toggle input:focus-visible+span{outline:3px solid #55ac79;outline-offset:2px;}
+.v2-nearby-branches{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:11px;margin:11px 0 8px;}
+.v2-nearby-branches select{width:100%;min-width:0;padding:10px 7px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:11px;font-size:12px;height:44px;}
+.v2-nearby-branch-name{font-size:12px;font-weight:700;margin:10px 0 5px;}
+.v2-nearby-address{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;color:var(--muted);font-size:11px;line-height:1.5;margin-top:8px;}
+.v2-nearby-address>span{flex:1;min-width:0;overflow-wrap:break-word;}
+.v2-nearby-address a{display:inline-flex;align-items:center;gap:4px;color:#267447;white-space:nowrap;font-weight:800;padding:5px 0;min-height:32px;text-decoration:underline;text-underline-offset:2px;}
+.v2-nearby-note{font-size:10px;line-height:1.65;color:var(--muted);margin-top:15px;}
+.v2-nearby-note strong{color:var(--text);}
+.v2-spin{animation:v2-spin 1.2s linear infinite;}
+@keyframes v2-spin{to{transform:rotate(360deg);}}
+@media(prefers-reduced-motion:reduce){.v2-spin{animation:none}.v2-nearby-toggle span:before{transition:none}}
