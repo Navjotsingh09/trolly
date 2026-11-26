@@ -1,5 +1,5 @@
-import {ImageIcon} from 'lucide-react';
 'use client';
+import {ImageIcon} from 'lucide-react';
 import {useEffect,useRef,useState} from 'react';
 
 type MediaPhoto={src:string;page:string;credit:string;license:string};
