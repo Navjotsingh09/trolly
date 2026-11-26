@@ -1,3 +1,4 @@
+import {ImageIcon} from 'lucide-react';
 'use client';
 import {useEffect,useRef,useState} from 'react';
 
@@ -28,6 +29,6 @@ export default function MediaAsset({id,kind,alt,fallback,size='small'}:Props){
   return()=>{active=false;observer.disconnect()};
  },[id,kind]);
  return <span ref={ref} className={'v2-media v2-media-'+kind+' '+(size==='large'?'v2-media-large':'')} title={photo?photo.credit+' · '+photo.license:alt}>
-   {photo&&!failed?<img src={photo.src} alt={alt} loading="lazy" decoding="async" onError={()=>setFailed(true)} referrerPolicy="no-referrer"/>:<span className="v2-media-fallback" aria-label={alt}>{fallback}</span>}
+   {photo&&!failed?<img src={photo.src} alt={alt} loading="lazy" decoding="async" onError={()=>setFailed(true)} referrerPolicy="no-referrer"/>:<span className="v2-media-fallback" aria-label={kind==='product'?'Product image not yet available':alt}>{kind==='product'?<ImageIcon size={size==='large'?44:19} strokeWidth={1.5}/>:fallback}</span>}
   </span>;
 }
